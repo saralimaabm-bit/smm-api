@@ -87,4 +87,19 @@ router.post("/", async (req, res) => {
   }
 });
 
+// apiV2.js
+router.post("/seed-services", async (req, res) => {
+  try {
+    const services = [
+      { name: "Seguidores BR", rate: 10, type: "follow" },
+      { name: "Seguidores Mundiais", rate: 15, type: "follow" },
+    ];
+    await Service.insertMany(services);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 export default router;
