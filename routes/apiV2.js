@@ -35,7 +35,7 @@ router.post("/", async (req, res) => {
     }
 
     if (action === "add") {
-      const svc = await Service.findById(service);
+      const svc = await Service.findOne({ id: Number(service) });
       if (!svc) return res.json({ error: "Serviço inválido" });
 
       const cost = (svc.rate / 1000) * quantity;
