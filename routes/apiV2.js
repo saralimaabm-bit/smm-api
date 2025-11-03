@@ -108,4 +108,45 @@ router.post("/seed-services", async (req, res) => {
   }
 });
 
+import { v4 as uuidv4 } from "uuid"; // já deve estar no topo do arquivo
+
+// 🔹 Registrar novo usuário
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, balance } = req.body;
+
+    if (!name || !email)
+      return res.status(400).json({ error: "Nome e e-mail são obrigatórios" });
+
+    // Gera chave única
+    const api_key = uuidv4().replace(/-/g, "").slice(0, 16);
+
+    // Verifica se já existe e-mail
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ error: "E-mail já cadastrado" });
+
+    // Cria novo usuário
+    const user = await User.create({
+      name,
+      email,
+      balance: balance || 100,
+      api_key,
+    });
+
+    return res.json({
+      message: "Usuário criado com sucesso",
+      user: {
+        name: user.name,
+        email: user.email,
+        balance: user.balance,
+        api_key: user.api_key,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao criar usuário" });
+  }
+});
+
+
 export default router;
