@@ -6,17 +6,17 @@ import Service from "../models/Service.js";
 
 const router = express.Router();
 
-// 🔹 Endpoint principal
+// 🔹 Endpoint principal (GET)
 router.get("/", async (req, res) => {
   const { action } = req.query;
 
   try {
-    // Listar serviços
     if (action === "services") {
       const services = await Service.find();
 
       const formatted = services.map((s, i) => ({
         id: i + 1,
+        _id: s._id,
         name: s.name,
         rate: s.rate,
         type: s.type,
@@ -32,7 +32,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 🔹 Endpoint de ações via POST
+// 🔹 Endpoint principal (POST)
 router.post("/", async (req, res) => {
   const { key, action, service, link, quantity, order } = req.body;
 
@@ -47,15 +47,20 @@ router.post("/", async (req, res) => {
 
     // Criar pedido
     if (action === "add") {
+      if (!service || !link || !quantity)
+        return res.status(400).json({ error: "Parâmetros obrigatórios: service, link, quantity" });
+
       const svc = await Service.findById(service);
       if (!svc) return res.json({ error: "Serviço inválido" });
 
       const cost = (svc.rate / 1000) * quantity;
       if (user.balance < cost) return res.json({ error: "Saldo insuficiente" });
 
+      // Debita saldo
       user.balance -= cost;
       await user.save();
 
+      // Cria pedido
       const newOrder = await Order.create({
         user_id: user._id,
         service_id: svc._id,
@@ -70,6 +75,8 @@ router.post("/", async (req, res) => {
 
     // Consultar status do pedido
     if (action === "status") {
+      if (!order) return res.status(400).json({ error: "Parâmetro obrigatório: order" });
+
       const ord = await Order.findById(order);
       if (!ord) return res.json({ error: "Pedido não encontrado" });
 
@@ -87,7 +94,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// apiV2.js
+// 🔹 Seed de serviços
 router.post("/seed-services", async (req, res) => {
   try {
     const services = [
@@ -97,9 +104,9 @@ router.post("/seed-services", async (req, res) => {
     await Service.insertMany(services);
     res.json({ success: true });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 export default router;
