@@ -36,4 +36,17 @@ router.post("/complete", async (req, res) => {
   }
 });
 
+// Criar nova tarefa
+router.post("/", async (req, res) => {
+  try {
+    const { order_id, status, ...rest } = req.body;
+    const newTask = new Task({ order_id, status, ...rest });
+    await newTask.save();
+    res.status(201).json(newTask);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 export default router;
