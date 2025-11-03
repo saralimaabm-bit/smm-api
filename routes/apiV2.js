@@ -1,66 +1,49 @@
 import express from "express";
-import { v4 as uuidv4 } from "uuid";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Service from "../models/Service.js";
 
 const router = express.Router();
 
-// 🔹 Endpoint principal (GET)
+// GET /api/v2?action=services
 router.get("/", async (req, res) => {
   const { action } = req.query;
+  if (action !== "services") return res.json({ error: "Ação inválida" });
 
   try {
-    if (action === "services") {
-      const services = await Service.find();
-
-      const formatted = services.map((s, i) => ({
-        id: i + 1,
-        _id: s._id,
-        name: s.name,
-        rate: s.rate,
-        type: s.type,
-      }));
-
-      return res.json(formatted);
-    }
-
-    return res.json({ error: "Ação inválida" });
+    const services = await Service.find();
+    res.json(services.map((s, i) => ({ id: i + 1, name: s.name, rate: s.rate, type: s.type })));
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Erro no servidor" });
+    res.status(500).json({ error: "Erro no servidor" });
   }
 });
 
-// 🔹 Endpoint principal (POST)
+// POST /api/v2
 router.post("/", async (req, res) => {
-  const { key, action, service, link, quantity, order } = req.body;
+  const { key, action, service, link, quantity, order, orders, refill, refills } = req.body;
 
   try {
     const user = await User.findOne({ api_key: key });
     if (!user) return res.status(401).json({ error: "API Key inválida" });
 
-    // Consultar saldo
-    if (action === "balance") {
-      return res.json({ balance: user.balance });
+    if (action === "balance") return res.json({ balance: user.balance });
+
+    if (action === "services") {
+      const services = await Service.find();
+      return res.json(services.map((s, i) => ({ id: i + 1, name: s.name, rate: s.rate, type: s.type })));
     }
 
-    // Criar pedido
     if (action === "add") {
-      if (!service || !link || !quantity)
-        return res.status(400).json({ error: "Parâmetros obrigatórios: service, link, quantity" });
-
       const svc = await Service.findById(service);
       if (!svc) return res.json({ error: "Serviço inválido" });
 
       const cost = (svc.rate / 1000) * quantity;
       if (user.balance < cost) return res.json({ error: "Saldo insuficiente" });
 
-      // Debita saldo
       user.balance -= cost;
       await user.save();
 
-      // Cria pedido
       const newOrder = await Order.create({
         user_id: user._id,
         service_id: svc._id,
@@ -73,28 +56,45 @@ router.post("/", async (req, res) => {
       return res.json({ order: newOrder._id });
     }
 
-    // Consultar status do pedido
     if (action === "status") {
-      if (!order) return res.status(400).json({ error: "Parâmetro obrigatório: order" });
+      if (order) {
+        const ord = await Order.findById(order);
+        if (!ord) return res.json({ error: "Pedido não encontrado" });
+        return res.json({ order: ord._id, status: ord.status, remains: ord.remains });
+      }
 
-      const ord = await Order.findById(order);
-      if (!ord) return res.json({ error: "Pedido não encontrado" });
+      if (orders) {
+        const ids = orders.split(",").map(id => id.trim());
+        const ords = await Order.find({ _id: { $in: ids } });
+        return res.json(ords.map(o => ({ order: o._id, status: o.status, remains: o.remains })));
+      }
+    }
 
-      return res.json({
-        order: ord._id,
-        status: ord.status,
-        remains: ord.remains,
-      });
+    if (action === "refill") {
+      if (refill) return res.json({ refill, status: "requested" });
+      if (refills) return res.json(refills.split(",").map(id => ({ refill: id.trim(), status: "requested" })));
+    }
+
+    if (action === "refill_status") {
+      if (refill) return res.json({ refill, status: "completed" });
+      if (refills) return res.json(refills.split(",").map(id => ({ refill: id.trim(), status: "completed" })));
+    }
+
+    if (action === "cancel") {
+      if (!orders) return res.json({ error: "orders é obrigatório" });
+      const ids = orders.split(",").map(id => id.trim());
+      await Order.updateMany({ _id: { $in: ids } }, { status: "cancelled" });
+      return res.json(ids.map(id => ({ order: id, status: "cancelled" })));
     }
 
     return res.json({ error: "Ação inválida" });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Erro no servidor" });
+    res.status(500).json({ error: "Erro no servidor" });
   }
 });
 
-// 🔹 Seed de serviços
+// POST /api/v2/seed-services
 router.post("/seed-services", async (req, res) => {
   try {
     const services = [
@@ -104,7 +104,6 @@ router.post("/seed-services", async (req, res) => {
     await Service.insertMany(services);
     res.json({ success: true });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });

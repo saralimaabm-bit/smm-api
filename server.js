@@ -1,21 +1,20 @@
 import express from "express";
+import mongoose from "mongoose";
 import dotenv from "dotenv";
-import cors from "cors";
-import connectDB from "./config/db.js";
-import apiV2Routes from "./routes/apiV2.js";
-import taskRoutes from "./routes/tasks.js";
+import apiV2 from "./routes/apiV2.js";
 
 dotenv.config();
-connectDB();
-
 const app = express();
-app.use(cors());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Rotas principais
-app.use("/api/v2", apiV2Routes);
-app.use("/tasks", taskRoutes);
+// Conectar ao MongoDB Atlas
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB conectado"))
+  .catch(err => console.error("Erro ao conectar MongoDB:", err));
 
+// Rotas
+app.use("/api/v2", apiV2);
+
+// Start server
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
