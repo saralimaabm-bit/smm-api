@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  service_id: { type: Number, required: true }, // agora número, não ObjectId
+  service_id: { type: Number, required: true }, // <- agora é número
   link: { type: String, required: true },
   quantity: { type: Number, required: true },
   remains: { type: Number, required: true },

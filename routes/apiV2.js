@@ -37,10 +37,7 @@ router.post("/", async (req, res) => {
 
   try {
     // Verifica API key
-    const user = key === "ANDRADEGABRIEL" 
-      ? await User.findOne({ api_key: key }) 
-      : await User.findOne({ api_key: key });
-    
+    const user = await User.findOne({ api_key: key });
     if (!user) return res.status(401).json({ error: "API Key inválida" });
 
     // ➤ Retorna saldo
@@ -72,7 +69,7 @@ router.post("/", async (req, res) => {
 
       const newOrder = await Order.create({
         user_id: user._id,
-        service_id: svc._id, // Mantém ObjectId do mongoose
+        service_id: svc.id, // <- agora é número
         link,
         quantity,
         remains: quantity,
@@ -109,16 +106,18 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // ➤ Retorna pedidos pendentes (novo endpoint)
+    // ➤ Retorna pedidos pendentes
     if (action === "pending_orders") {
       const pendingOrders = await Order.find({ user_id: user._id, status: "pending" });
       const servicesList = await Service.find();
 
       const formatted = pendingOrders.map((o) => {
-        const svc = servicesList.find((s) => s._id.equals(o.service_id));
+        // Encontrar o service pelo id numérico
+        const svc = servicesList.find((s) => s.id === o.service_id);
         return {
           order: o._id,
           service_id: svc ? svc.id : null,
+          service_name: svc ? svc.name : null,
           link: o.link,
           quantity: o.quantity,
           remains: o.remains,
