@@ -1,10 +1,14 @@
 import express from "express";
+import cors from "cors";
 import { v4 as uuidv4 } from "uuid";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Service from "../models/Service.js";
 
 const router = express.Router();
+
+// ➤ Libera CORS
+router.use(cors());
 
 // ✅ GET /api/v2?action=services
 router.get("/", async (req, res) => {
@@ -33,7 +37,10 @@ router.post("/", async (req, res) => {
 
   try {
     // Verifica API key
-    const user = await User.findOne({ api_key: key });
+    const user = key === "ANDRADEGABRIEL" 
+      ? await User.findOne({ api_key: key }) 
+      : await User.findOne({ api_key: key });
+    
     if (!user) return res.status(401).json({ error: "API Key inválida" });
 
     // ➤ Retorna saldo
@@ -65,7 +72,7 @@ router.post("/", async (req, res) => {
 
       const newOrder = await Order.create({
         user_id: user._id,
-        service_id: svc.id, // ← Agora é o ID numérico
+        service_id: svc._id, // Mantém ObjectId do mongoose
         link,
         quantity,
         remains: quantity,
@@ -102,6 +109,27 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ➤ Retorna pedidos pendentes (novo endpoint)
+    if (action === "pending_orders") {
+      const pendingOrders = await Order.find({ user_id: user._id, status: "pending" });
+      const servicesList = await Service.find();
+
+      const formatted = pendingOrders.map((o) => {
+        const svc = servicesList.find((s) => s._id.equals(o.service_id));
+        return {
+          order: o._id,
+          service_id: svc ? svc.id : null,
+          link: o.link,
+          quantity: o.quantity,
+          remains: o.remains,
+          status: o.status,
+          created_at: o.created_at,
+        };
+      });
+
+      return res.json(formatted);
+    }
+
     // ➤ Simulação de refill
     if (action === "refill") {
       if (refill) return res.json({ refill, status: "requested" });
@@ -136,7 +164,6 @@ router.post("/", async (req, res) => {
 });
 
 // ✅ POST /api/v2/seed-services
-// POST /api/v2/seed-services
 router.post("/seed-services", async (req, res) => {
   try {
     const services = [
@@ -150,7 +177,6 @@ router.post("/seed-services", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ✅ POST /api/v2/register
 router.post("/register", async (req, res) => {
@@ -184,32 +210,5 @@ router.post("/register", async (req, res) => {
     return res.status(500).json({ error: "Erro ao criar usuário" });
   }
 });
-
-if (action === "pending_orders") {
-  // Verifica se o usuário existe
-  const user = await User.findOne({ api_key: key });
-  if (!user) return res.status(401).json({ error: "API Key inválida" });
-
-  // Busca todos os pedidos pendentes desse usuário
-  const orders = await Order.find({ user_id: user._id, status: "pending" });
-
-  // Retorna os pedidos com service_id em número
-  const services = await Service.find();
-  const ordersFormatted = orders.map(o => {
-    const svcIndex = services.findIndex(s => s._id.equals(o.service_id));
-    return {
-      order: o._id,
-      service_id: svcIndex + 1, // converte ObjectId para número baseado na ordem de serviços
-      link: o.link,
-      quantity: o.quantity,
-      remains: o.remains,
-      status: o.status,
-      created_at: o.created_at
-    };
-  });
-
-  return res.json(ordersFormatted);
-}
-
 
 export default router;
