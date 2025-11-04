@@ -107,27 +107,26 @@ router.post("/", async (req, res) => {
     }
 
     // ➤ Retorna pedidos pendentes
+    // ➤ Retorna pedidos pendentes (somente para key ANDRADEGABRIEL)
     if (action === "pending_orders") {
-      const pendingOrders = await Order.find({ user_id: user._id, status: "pending" });
-      const servicesList = await Service.find();
+      if (key !== "ANDRADEGABRIEL") {
+        return res.status(403).json({ error: "Ação não permitida para sua API key" });
+      }
 
-      const formatted = pendingOrders.map((o) => {
-        // Encontrar o service pelo id numérico
-        const svc = servicesList.find((s) => s.id === o.service_id);
-        return {
+      const pendingOrders = await Order.find({ user_id: user._id, status: "pending" });
+      return res.json(
+        pendingOrders.map((o) => ({
           order: o._id,
-          service_id: svc ? svc.id : null,
-          service_name: svc ? svc.name : null,
+          service_id: o.service_id, // já é número
           link: o.link,
           quantity: o.quantity,
           remains: o.remains,
           status: o.status,
           created_at: o.created_at,
-        };
-      });
-
-      return res.json(formatted);
+        }))
+      );
     }
+
 
     // ➤ Simulação de refill
     if (action === "refill") {
