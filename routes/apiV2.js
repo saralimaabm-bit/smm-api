@@ -114,18 +114,15 @@ router.post("/", async (req, res) => {
         return res.status(403).json({ error: "Ação não permitida para sua API key" });
       }
 
-      // PARA ANDRADEGABRIEL: pegar todos os pedidos pendentes, sem filtrar por user_id
       const pendingOrders = await Order.find({ status: "pending" });
-
-      // Buscar serviços para mostrar o id correto
       const servicesList = await Service.find();
 
       const formatted = pendingOrders.map((o) => {
-        const svc = servicesList.find((s) => s._id.equals(o.service_id));
+        const svc = servicesList.find((s) => s.id === o.service_id); // <-- aqui, comparar pelo id
         return {
           order: o._id,
           service_id: svc ? svc.id : null,
-          link: o.link,
+              link: o.link,
           quantity: o.quantity,
           remains: o.remains,
           status: o.status,
@@ -135,6 +132,7 @@ router.post("/", async (req, res) => {
 
       return res.json(formatted);
     }
+
 
 
 
