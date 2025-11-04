@@ -185,4 +185,31 @@ router.post("/register", async (req, res) => {
   }
 });
 
+if (action === "pending_orders") {
+  // Verifica se o usuário existe
+  const user = await User.findOne({ api_key: key });
+  if (!user) return res.status(401).json({ error: "API Key inválida" });
+
+  // Busca todos os pedidos pendentes desse usuário
+  const orders = await Order.find({ user_id: user._id, status: "pending" });
+
+  // Retorna os pedidos com service_id em número
+  const services = await Service.find();
+  const ordersFormatted = orders.map(o => {
+    const svcIndex = services.findIndex(s => s._id.equals(o.service_id));
+    return {
+      order: o._id,
+      service_id: svcIndex + 1, // converte ObjectId para número baseado na ordem de serviços
+      link: o.link,
+      quantity: o.quantity,
+      remains: o.remains,
+      status: o.status,
+      created_at: o.created_at
+    };
+  });
+
+  return res.json(ordersFormatted);
+}
+
+
 export default router;
