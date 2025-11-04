@@ -136,18 +136,21 @@ router.post("/", async (req, res) => {
 });
 
 // ✅ POST /api/v2/seed-services
+// POST /api/v2/seed-services
 router.post("/seed-services", async (req, res) => {
   try {
     const services = [
       { id: 1, name: "Seguidores BR", rate: 10, type: "follow" },
       { id: 2, name: "Seguidores Mundiais", rate: 15, type: "follow" },
     ];
+
     await Service.insertMany(services);
-    res.json({ success: true });
+    res.json({ success: true, message: "Serviços seed inseridos com sucesso" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ✅ POST /api/v2/register
 router.post("/register", async (req, res) => {
