@@ -139,24 +139,30 @@ router.post("/", async (req, res) => {
       return res.json(formatted);
     }
 	
-	
+	// ➤ Atualiza status de um pedido (somente para key ANDRADEGABRIEL)
 	if (action === "update_order_status") {
-      if (key !== "ANDRADEGABRIEL") {
-        return res.status(403).json({ error: "Sem permissão para atualizar pedidos" });
+      try {
+        if (key !== "ANDRADEGABRIEL") {
+          return res.status(403).json({ error: "Sem permissão para atualizar pedidos" });
+        }
+
+        if (!order || !status) {
+          return res.status(400).json({ error: "order e status são obrigatórios" });
+        }
+
+        const ord = await Order.findById(order);
+        if (!ord) return res.status(404).json({ error: "Pedido não encontrado" });
+
+        ord.status = status;
+        await ord.save();
+
+        return res.json({ success: true, order: ord._id, status: ord.status });
+      } catch (error) {
+        console.error("❌ Erro ao atualizar pedido:", error);
+        return res.status(500).json({ error: error.message || "Erro desconhecido" });
       }
-
-      if (!order || !status) {
-        return res.status(400).json({ error: "order e status são obrigatórios" });
-      }
-
-      const ord = await Order.findById(order);
-      if (!ord) return res.status(404).json({ error: "Pedido não encontrado" });
-
-      ord.status = status;
-      await ord.save();
-
-      return res.json({ success: true, order: ord._id, status: ord.status });
     }
+
 
 
 
