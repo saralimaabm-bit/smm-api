@@ -1,12 +1,12 @@
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Service from "../models/Service.js";
-import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 
-// ✅ GET /api/v2?action=services
+// 🔹 GET /api/v2?action=services
 router.get("/", async (req, res) => {
   const { action } = req.query;
   if (action !== "services") return res.json({ error: "Ação inválida" });
@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
     const services = await Service.find();
     res.json(
       services.map((s, i) => ({
-        id: i + 1,
+        id: s.id || i + 1,
         name: s.name,
         rate: s.rate,
         type: s.type,
@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ POST /api/v2
+// 🔹 POST /api/v2
 router.post("/", async (req, res) => {
   const { key, action, service, link, quantity, order, orders, refill, refills } = req.body;
 
@@ -35,15 +35,17 @@ router.post("/", async (req, res) => {
     const user = await User.findOne({ api_key: key });
     if (!user) return res.status(401).json({ error: "API Key inválida" });
 
-    // 🔹 Consultar saldo
-    if (action === "balance") return res.json({ balance: user.balance });
+    // 🔸 Consultar saldo
+    if (action === "balance") {
+      return res.json({ balance: user.balance });
+    }
 
-    // 🔹 Listar serviços
+    // 🔸 Listar serviços
     if (action === "services") {
       const services = await Service.find();
       return res.json(
         services.map((s, i) => ({
-          id: i + 1,
+          id: s.id || i + 1,
           name: s.name,
           rate: s.rate,
           type: s.type,
@@ -51,15 +53,9 @@ router.post("/", async (req, res) => {
       );
     }
 
-    // 🔹 Criar novo pedido
+    // 🔸 Criar pedido
     if (action === "add") {
-      const services = await Service.find();
-      const serviceMap = {};
-      services.forEach((s, i) => {
-        serviceMap[i + 1] = s;
-      });
-
-      const svc = serviceMap[Number(service)];
+      const svc = await Service.findOne({ id: Number(service) });
       if (!svc) return res.json({ error: "Serviço inválido" });
 
       const cost = (svc.rate / 1000) * quantity;
@@ -68,35 +64,32 @@ router.post("/", async (req, res) => {
       user.balance -= cost;
       await user.save();
 
+      // Hora de criação formatada (Brasília)
+      const createdAt = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+
       const newOrder = await Order.create({
         user_id: user._id,
-        service_id: Number(service), // 🔹 agora salva o número, não o _id
+        service_id: svc.id, // agora salva número!
         link,
         quantity,
         remains: quantity,
         status: "pending",
-        created_at: new Date().toLocaleString("pt-BR", {
-          timeZone: "America/Sao_Paulo",
-        }),
+        created_at: createdAt,
       });
 
-      return res.json({
-        order: newOrder._id,
-        service_id: Number(service),
-        message: "Pedido criado com sucesso",
-      });
+      return res.json({ order: newOrder._id });
     }
 
-    // 🔹 Consultar status
+    // 🔸 Consultar status de pedido(s)
     if (action === "status") {
       if (order) {
         const ord = await Order.findById(order);
         if (!ord) return res.json({ error: "Pedido não encontrado" });
         return res.json({
           order: ord._id,
+          service_id: ord.service_id,
           status: ord.status,
           remains: ord.remains,
-          service_id: ord.service_id,
         });
       }
 
@@ -106,33 +99,29 @@ router.post("/", async (req, res) => {
         return res.json(
           ords.map((o) => ({
             order: o._id,
+            service_id: o.service_id,
             status: o.status,
             remains: o.remains,
-            service_id: o.service_id,
           }))
         );
       }
     }
 
-    // 🔹 Solicitar refill
+    // 🔸 Pedidos de refill
     if (action === "refill") {
       if (refill) return res.json({ refill, status: "requested" });
       if (refills)
-        return res.json(
-          refills.split(",").map((id) => ({ refill: id.trim(), status: "requested" }))
-        );
+        return res.json(refills.split(",").map((id) => ({ refill: id.trim(), status: "requested" })));
     }
 
-    // 🔹 Consultar status do refill
+    // 🔸 Status de refill
     if (action === "refill_status") {
       if (refill) return res.json({ refill, status: "completed" });
       if (refills)
-        return res.json(
-          refills.split(",").map((id) => ({ refill: id.trim(), status: "completed" }))
-        );
+        return res.json(refills.split(",").map((id) => ({ refill: id.trim(), status: "completed" })));
     }
 
-    // 🔹 Cancelar pedidos
+    // 🔸 Cancelar pedidos
     if (action === "cancel") {
       if (!orders) return res.json({ error: "orders é obrigatório" });
       const ids = orders.split(",").map((id) => id.trim());
@@ -147,12 +136,12 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ Cadastrar serviços básicos
+// 🔹 POST /api/v2/seed-services — cria serviços padrão
 router.post("/seed-services", async (req, res) => {
   try {
     const services = [
-      { name: "Seguidores BR", rate: 10, type: "follow" },
-      { name: "Seguidores Mundiais", rate: 15, type: "follow" },
+      { id: 1, name: "Seguidores BR", rate: 10, type: "follow" },
+      { id: 2, name: "Seguidores Mundiais", rate: 15, type: "follow" },
     ];
     await Service.insertMany(services);
     res.json({ success: true });
@@ -161,7 +150,7 @@ router.post("/seed-services", async (req, res) => {
   }
 });
 
-// ✅ Registrar novo usuário
+// 🔹 POST /api/v2/register — cria novo usuário
 router.post("/register", async (req, res) => {
   try {
     const { name, email, balance } = req.body;
