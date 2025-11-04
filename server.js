@@ -7,6 +7,12 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+//  Coloque o CORS aqui, antes das rotas
+import cors from "cors";
+app.use(cors({
+  origin: "*" // permite qualquer origem. Depois você pode restringir ao domínio do fornecedor
+}));
+
 // Conectar ao MongoDB Atlas
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB conectado"))
