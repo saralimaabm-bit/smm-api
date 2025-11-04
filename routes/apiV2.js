@@ -53,14 +53,12 @@ router.post("/", async (req, res) => {
 
     // 🔹 Criar novo pedido
     if (action === "add") {
-      // Busca todos os serviços e cria um map id numérico → _id real
       const services = await Service.find();
       const serviceMap = {};
       services.forEach((s, i) => {
-        serviceMap[i + 1] = s; // 1 => primeiro serviço
+        serviceMap[i + 1] = s;
       });
 
-      // Pega o serviço correspondente ao número enviado
       const svc = serviceMap[Number(service)];
       if (!svc) return res.json({ error: "Serviço inválido" });
 
@@ -72,12 +70,14 @@ router.post("/", async (req, res) => {
 
       const newOrder = await Order.create({
         user_id: user._id,
-        service_id: svc._id, // mantém o _id real
+        service_id: Number(service), // 🔹 agora salva o número, não o _id
         link,
         quantity,
         remains: quantity,
         status: "pending",
-        created_at: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+        created_at: new Date().toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+        }),
       });
 
       return res.json({
@@ -92,7 +92,12 @@ router.post("/", async (req, res) => {
       if (order) {
         const ord = await Order.findById(order);
         if (!ord) return res.json({ error: "Pedido não encontrado" });
-        return res.json({ order: ord._id, status: ord.status, remains: ord.remains });
+        return res.json({
+          order: ord._id,
+          status: ord.status,
+          remains: ord.remains,
+          service_id: ord.service_id,
+        });
       }
 
       if (orders) {
@@ -103,6 +108,7 @@ router.post("/", async (req, res) => {
             order: o._id,
             status: o.status,
             remains: o.remains,
+            service_id: o.service_id,
           }))
         );
       }
