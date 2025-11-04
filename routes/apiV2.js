@@ -39,7 +39,7 @@ router.get("/", async (req, res) => {
 
 // ✅ POST /api/v2
 router.post("/", async (req, res) => {
-  const { key, action, service, link, quantity, order, orders, refill, refills } = req.body;
+  const { key, action, service, link, quantity, order, orders, refill, refills, status } = req.body;
 
   try {
     // Verifica API key
