@@ -12,7 +12,12 @@ router.use(cors());
 
 // ✅ GET /api/v2?action=services
 router.get("/", async (req, res) => {
-  const { action } = req.query;
+  const { action, key } = req.query;
+
+  // ✅ Verifica API key
+  const user = await User.findOne({ api_key: key });
+  if (!user) return res.status(401).json({ error: "API Key inválida" });
+
   if (action !== "services") return res.json({ error: "Ação inválida" });
 
   try {
@@ -30,6 +35,7 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: "Erro no servidor" });
   }
 });
+
 
 // ✅ POST /api/v2
 router.post("/", async (req, res) => {
